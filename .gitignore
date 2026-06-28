@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+uploads/
+*.db
+.DS_Store
+.vscode/
+# Tectonic LaTeX engine binary (~50MB) — fetched via installer or installed on host.
+bin/tectonic
+bin/tectonic.exe
