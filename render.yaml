@@ -1,0 +1,27 @@
+# Render Blueprint — deploy with "New +" -> "Blueprint" and point at this repo.
+# Free web service running the Flask app under gunicorn. Data is ephemeral
+# SQLite (resets on restart); opportunities reseed automatically on boot.
+services:
+  - type: web
+    name: opportune
+    runtime: python
+    plan: free
+    buildCommand: "./render-build.sh"
+    # Bind to 0.0.0.0:$PORT so Render can detect the open port. Generous
+    # timeout because LLM calls and the first PDF compile can be slow.
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.4"
+      # Secrets — set these in the Render dashboard (sync:false keeps them
+      # out of the repo). Values come from your local .env.
+      - key: HACKCLUB_AI_API_KEY
+        sync: false
+      - key: HACKCLUB_SEARCH_API_KEY
+        sync: false
+      - key: ADZUNA_APP_ID
+        sync: false
+      - key: ADZUNA_APP_KEY
+        sync: false
+      - key: MOCK_MODE
+        value: "false"
