@@ -10,8 +10,10 @@ pip install -r requirements.txt
 # config.py auto-detects ./bin/tectonic, so no env var is needed once it's here.
 mkdir -p bin
 if [ ! -x bin/tectonic ]; then
-  echo "Downloading Tectonic 0.16.9 (Linux x86_64)..."
-  curl -fsSL "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.16.9/tectonic-0.16.9-x86_64-unknown-linux-gnu.tar.gz" \
+  # Use the statically-linked musl build: the gnu build needs GLIBC_2.38+,
+  # which Render's build image doesn't have. musl has no glibc dependency.
+  echo "Downloading Tectonic 0.16.9 (Linux x86_64, static musl)..."
+  curl -fsSL "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.16.9/tectonic-0.16.9-x86_64-unknown-linux-musl.tar.gz" \
     | tar -xz -C bin
   chmod +x bin/tectonic
 fi
