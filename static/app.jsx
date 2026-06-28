@@ -55,7 +55,7 @@ function TopBar({ go, demo, setDemo, tab, onTab, showTabs }) {
           </div>
         )}
         <div className="topbar-right">
-          <span className="topbar-mode">{demo ? 'Demo mode' : 'Live — using real AI'}</span>
+          <span className="topbar-mode">{demo ? 'Demo mode' : 'Searching LIVE results'}</span>
           <Toggle on={demo} onClick={() => setDemo(!demo)} />
         </div>
       </div>
@@ -406,7 +406,7 @@ function App() {
           collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
         <div className="app-main app-page">
           <div className="topstrip">
-            <span className="topbar-mode">{demo ? 'Demo mode' : 'Live — using real AI'}</span>
+            <span className="topbar-mode">{demo ? 'Demo mode' : 'Searches LIVE results'}</span>
           </div>
           {inner}
         </div>
