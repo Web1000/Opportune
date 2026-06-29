@@ -95,13 +95,14 @@ def _build_query(profile: dict, source_key: str, filters: dict = None) -> str:
             f"Skills: {', '.join(skills) if skills else 'general'}. "
             f"Interests: {', '.join(interests) if interests else 'tech'}."
         )
-    # scholarshipscanada
-    base = (
-        f"Scholarships in Canada open to a {year} {field} student. "
-        f"Focus areas: {', '.join(interests) if interests else 'STEM'}."
-    )
+    # scholarshipscanada — keep this keyword-style (not a full sentence): search
+    # backends like Tavily return far better domain-scoped hits for a concise
+    # "<field> scholarships Canada <focus>" query than for a natural-language one.
+    # Fit against the full profile is handled later by the scoring step.
+    focus = ", ".join(interests) if interests else "STEM"
+    base = f"{field} scholarships Canada {focus}".strip()
     if company:
-        base += f" Offered by {company}."
+        base += f" {company}"
     return base
 
 
