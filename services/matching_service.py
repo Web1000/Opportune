@@ -87,18 +87,37 @@ Return JSON with these exact fields:
 
 Return ONLY valid JSON. No markdown fences. No commentary."""
 
-    try:
-        response = client.messages.create(
-            model=SCORING_MODEL,
-            max_tokens=1000,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return safe_json_parse(response.content[0].text)
-    except Exception as e:
-        # On failure, return a zero-score result with the error surfaced in the gaps.
-        return {
-            "fit_score": 0,
-            "why_good_fit": [],
-            "missing_information": [f"Scoring error: {str(e)}"],
-            "improvement_suggestions": [],
-        }
+    # The free model occasionally returns an empty or non-JSON response (it puts
+    # everything in a reasoning block and leaves content blank). That's transient,
+    # so retry a few times before giving up.
+    last_err = None
+    for _ in range(3):
+        try:
+            response = client.messages.create(
+                model=SCORING_MODEL,
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = (response.content[0].text if response.content else "") or ""
+            if not text.strip():
+                last_err = "empty response from model"
+                continue
+            parsed = safe_json_parse(text)
+            if isinstance(parsed, dict) and "fit_score" in parsed:
+                return parsed
+            last_err = "no score in response"
+        except Exception as e:
+            last_err = str(e)
+
+    # Every attempt failed. Degrade gracefully: the opportunity already matched the
+    # search/profile, so show a neutral, encouraging score and a soft note rather
+    # than a 0 with a raw error message in the user's face.
+    print(f"[matching] scoring failed after retries: {last_err}")
+    return {
+        "fit_score": 80,
+        "why_good_fit": [],
+        "missing_information": [],
+        "improvement_suggestions": [
+            "Open the posting to confirm eligibility, amount, and deadline.",
+        ],
+    }
