@@ -30,6 +30,13 @@ HACKCLUB_SEARCH_URL = os.getenv(
     "HACKCLUB_SEARCH_URL", "https://search.hackclub.com/res/v1/web/search"
 )
 
+# Tavily search (tavily.com) — preferred live-search backend when configured, as
+# it is reliable and supports server-side domain filtering. When TAVILY_API_KEY
+# is set, web_search() uses Tavily and falls back to Hack Club Search only if the
+# Tavily request fails. Get a free key (1k searches/mo) at https://app.tavily.com .
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+TAVILY_SEARCH_URL = os.getenv("TAVILY_SEARCH_URL", "https://api.tavily.com/search")
+
 # Adzuna job-search API credentials (developer.adzuna.com). When both are set,
 # live JOB search uses Adzuna's real Canadian/US listings — with canonical apply
 # URLs — instead of the Hack Club Search fallback. Empty when not configured.

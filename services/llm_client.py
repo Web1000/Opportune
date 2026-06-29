@@ -19,6 +19,8 @@ from config import (
     HACKCLUB_AI_BASE_URL,
     HACKCLUB_SEARCH_API_KEY,
     HACKCLUB_SEARCH_URL,
+    TAVILY_API_KEY,
+    TAVILY_SEARCH_URL,
 )
 
 # Longer timeout: drafting a full tailored resume can take a while.
@@ -81,15 +83,58 @@ client = _Client()
 
 
 # --- Free web search (Hack Club Search) ------------------------------------
-def web_search(query: str, allowed_domains=None, count: int = 8) -> list[dict]:
-    """Return [{"url","title","description"}] from the Hack Club Search API.
+def _apply_domain_bias(results: list[dict], allowed_domains) -> list[dict]:
+    """Soft domain filter: if any results are on an allowed domain keep only
+    those, otherwise return all (a too-narrow allowlist never starves search)."""
+    if not allowed_domains:
+        return results
+    doms = [d.lower() for d in allowed_domains]
+    filtered = [r for r in results if any(d in r["url"].lower() for d in doms)]
+    return filtered or results
 
-    `allowed_domains` softly biases results: if any returned URLs are hosted on
-    one of those domains, only those are kept; otherwise all results are returned
-    (so a too-narrow allowlist never starves the search). Returns [] silently if
-    no search key is configured or the request fails — callers degrade to their
-    own fallbacks (e.g. Adzuna for jobs).
-    """
+
+def _tavily_search(query: str, allowed_domains, count: int):
+    """Search via Tavily. Returns a list of hits, or None when Tavily is not
+    configured or the request fails (so the caller can fall back)."""
+    if not TAVILY_API_KEY:
+        return None
+    try:
+        payload = {
+            "query": (query or "")[:400],
+            "max_results": count,
+            "search_depth": "basic",
+        }
+        if allowed_domains:
+            # Tavily filters by domain server-side, so results come back scoped.
+            payload["include_domains"] = list(allowed_domains)
+        headers = {
+            "Authorization": f"Bearer {TAVILY_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        resp = httpx.post(TAVILY_SEARCH_URL, json=payload, headers=headers, timeout=20.0)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        print(f"[web_search] Tavily failed, will try fallback: {e}")
+        return None
+
+    results = []
+    for item in data.get("results", []):
+        if not isinstance(item, dict):
+            continue
+        url = (item.get("url") or "").strip()
+        if not url:
+            continue
+        results.append({
+            "url": url,
+            "title": (item.get("title") or "").strip(),
+            "description": (item.get("content") or "").strip(),
+        })
+    return _apply_domain_bias(results, allowed_domains)
+
+
+def _hackclub_search(query: str, allowed_domains, count: int) -> list[dict]:
+    """Search via the Hack Club Search API. Returns [] if unconfigured/failed."""
     if not HACKCLUB_SEARCH_API_KEY:
         return []
     try:
@@ -98,7 +143,8 @@ def web_search(query: str, allowed_domains=None, count: int = 8) -> list[dict]:
         resp = httpx.get(HACKCLUB_SEARCH_URL, params=params, headers=headers, timeout=20.0)
         resp.raise_for_status()
         data = resp.json()
-    except Exception:
+    except Exception as e:
+        print(f"[web_search] Hack Club Search failed: {e}")
         return []
 
     raw = ((data.get("web") or {}).get("results")) or data.get("results") or []
@@ -114,13 +160,19 @@ def web_search(query: str, allowed_domains=None, count: int = 8) -> list[dict]:
             "title": (item.get("title") or "").strip(),
             "description": (item.get("description") or item.get("snippet") or "").strip(),
         })
+    return _apply_domain_bias(results, allowed_domains)
 
-    if allowed_domains:
-        doms = [d.lower() for d in allowed_domains]
-        def _host_ok(u: str) -> bool:
-            h = u.lower()
-            return any(d in h for d in doms)
-        filtered = [r for r in results if _host_ok(r["url"])]
-        if filtered:
-            return filtered
-    return results
+
+def web_search(query: str, allowed_domains=None, count: int = 8) -> list[dict]:
+    """Return [{"url","title","description"}] from a live web-search backend.
+
+    Prefers Tavily when TAVILY_API_KEY is set (reliable, with server-side domain
+    filtering); falls back to the Hack Club Search API if Tavily is unconfigured
+    or its request fails. `allowed_domains` softly biases results to those hosts.
+    Returns [] silently if no backend is available — callers then degrade to
+    their own fallbacks (e.g. Adzuna for jobs).
+    """
+    hits = _tavily_search(query, allowed_domains, count)
+    if hits is not None:
+        return hits
+    return _hackclub_search(query, allowed_domains, count)
