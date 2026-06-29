@@ -60,6 +60,34 @@ def _flatten_skills(skills) -> list:
     return []
 
 
+_CREDENTIAL = re.compile(
+    r"^\s*(?:"
+    r"b\.?\s?(?:a\.?sc|sc|eng|comm|ba|math|fa|hsc|ed|a|s)\b\.?|"
+    r"m\.?\s?(?:a\.?sc|sc|eng|comm|ba|math|fa|a|s)\b\.?|"
+    r"ph\.?\s?d\b\.?|m\.?d\b\.?|j\.?d\b\.?|"
+    r"bachelor(?:'s)?(?:\s+of)?|master(?:'s)?(?:\s+of)?|associate(?:'s)?(?:\s+of)?|"
+    r"honou?rs?|hons?|diploma(?:\s+in)?|degree(?:\s+in)?|undergraduate|graduate"
+    r")\b[\s,]*", re.I)
+
+
+def _study_field(degree) -> str:
+    """Extract the field of study from a degree string, dropping the credential.
+
+    Search backends return individual scholarship listings for "Computer Science
+    scholarships" but mostly articles/landing pages for "BASc Computer Science
+    scholarships" — so we strip leading credentials ("BASc", "Bachelor of", etc.)
+    to get a clean field name for the query. Falls back to "student" if nothing
+    is left (e.g. a bare "BBA").
+    """
+    s = re.sub(r"\(.*$", "", str(degree or "")).replace(",", " ").strip()
+    prev = None
+    while prev != s:                                   # strip stacked credentials
+        prev = s
+        s = _CREDENTIAL.sub("", s).strip()
+    s = re.sub(r"^(of|in)\s+", "", s, flags=re.I)
+    return re.sub(r"\s+", " ", s).strip() or "student"
+
+
 def _build_query(profile: dict, source_key: str, filters: dict = None) -> str:
     """Turn the profile (and any user search filters) into a focused query.
 
@@ -95,12 +123,12 @@ def _build_query(profile: dict, source_key: str, filters: dict = None) -> str:
             f"Skills: {', '.join(skills) if skills else 'general'}. "
             f"Interests: {', '.join(interests) if interests else 'tech'}."
         )
-    # scholarshipscanada — keep this keyword-style (not a full sentence): search
-    # backends like Tavily return far better domain-scoped hits for a concise
-    # "<field> scholarships Canada <focus>" query than for a natural-language one.
-    # Fit against the full profile is handled later by the scoring step.
-    focus = ", ".join(interests) if interests else "STEM"
-    base = f"{field} scholarships Canada {focus}".strip()
+    # scholarshipscanada — keep this keyword-style and field-focused (not a full
+    # sentence, no interests): search backends like Tavily surface individual
+    # scholarship listings for "<field> scholarships Canada" but mostly articles
+    # and landing pages for verbose, interest-laden queries. Fit against the full
+    # profile (interests included) is handled later by the scoring step.
+    base = f"{_study_field(field)} scholarships Canada"
     if company:
         base += f" {company}"
     return base
