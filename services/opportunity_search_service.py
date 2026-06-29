@@ -88,6 +88,19 @@ def _study_field(degree) -> str:
     return re.sub(r"\s+", " ", s).strip() or "student"
 
 
+def _looks_like_posting(url: str) -> bool:
+    """Heuristic: is this URL an individual posting (vs a site root, search-results
+    page, or article)? Used to filter raw search hits in the fallback path."""
+    u = (url or "").lower()
+    if not urlsplit(u).path.strip("/"):           # bare domain / landing page
+        return False
+    if "search" in u:                              # search-results pages
+        return False
+    if any(seg in u for seg in ("/discover/", "/article/", "/articles/", "/blog/", "/news/")):
+        return False
+    return True
+
+
 def _build_query(profile: dict, source_key: str, filters: dict = None) -> str:
     """Turn the profile (and any user search filters) into a focused query.
 
@@ -528,11 +541,27 @@ Rules:
 - If none are a reasonable match, return {{"opportunities": []}}.
 - Return ONLY valid JSON. No markdown fences. No commentary."""
 
-    response = client.messages.create(
-        model=CLAUDE_MODEL,
-        max_tokens=4000,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    # Ask the model to select individual postings from the real hits. Best-effort:
+    # if the AI call or its parsing fails (the free model is occasionally slow or
+    # returns a malformed envelope), we fall back to the raw search hits below, so
+    # a flaky model never breaks live search.
+    raw_items = []
+    try:
+        response = client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=4000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        # The model emits the JSON in a text block (the last one — thinking/tool
+        # blocks may precede it).
+        text = ""
+        for block in response.content:
+            if getattr(block, "type", None) == "text":
+                text = block.text
+        parsed = safe_json_parse(text) if text else {}
+        raw_items = parsed.get("opportunities", []) if isinstance(parsed, dict) else []
+    except Exception as e:
+        print(f"[opportunity_search] AI selection failed for {source_key}; using raw hits: {e}")
 
     # The URLs the search engine actually returned — the only ones we trust.
     real_results = results_hits
@@ -542,18 +571,6 @@ Rules:
         t = _norm_title(r["title"])
         if t:
             by_title.setdefault(t, r["url"])
-
-    # The model emits the JSON in a text block (the last one — thinking/tool
-    # blocks may precede it).
-    text = ""
-    for block in response.content:
-        if getattr(block, "type", None) == "text":
-            text = block.text
-    if not text:
-        return []
-
-    parsed = safe_json_parse(text)
-    raw_items = parsed.get("opportunities", []) if isinstance(parsed, dict) else []
 
     def _to_opp(it, url):
         return {
@@ -584,19 +601,32 @@ Rules:
         seen.add(real_url)
         out.append(_to_opp(item, real_url))
 
-    # Safety net: if we saw NO web_search results to ground against (e.g. the
-    # result-block shape ever differs from what we parse here), don't silently
-    # return nothing — fall back to the model's own URLs. HTTP validation below
-    # still drops the dead ones.
-    if not out and not real_results:
-        for item in raw_items:
-            if not isinstance(item, dict):
+    # Fallback: if the model selected nothing usable (it errored, returned [], or
+    # none of its picks matched a real hit), build opportunities straight from the
+    # real search hits, filtered to plausible individual postings. The hits are
+    # already domain-scoped and get HTTP-validated below, so this stays grounded.
+    if not out:
+        for h in real_results:
+            url = (h.get("url") or "").strip()
+            if not url or url in seen or not _looks_like_posting(url):
                 continue
-            u = (item.get("url") or "").strip()
-            if not u or u in seen:
-                continue
-            seen.add(u)
-            out.append(_to_opp(item, u))
+            seen.add(url)
+            title = re.sub(r"\s*[-–|]\s*[^-–|]*\.com!?\s*$", "", h.get("title", "")).strip()
+            out.append({
+                "id": f"live-{source_key}-{abs(hash(url)) % (10**9)}",
+                "title": title or cfg["type"],
+                "organization": "",
+                "type": cfg["type"],
+                "employment_type": "",
+                "field": "",
+                "location": "",
+                "gpa_requirement": "Not specified",
+                "required_skills": "",
+                "description": (h.get("description") or "").strip(),
+                "deadline": "Not specified",
+                "url": url,
+                "source": source_key,
+            })
 
     # Validate the surviving URLs still resolve; drop clearly-dead postings
     # (404/410). Concurrent with a short timeout, so this adds little latency.
