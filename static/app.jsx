@@ -177,7 +177,10 @@ function App() {
   const [matchData, setMatchData] = useState({
     seedResults: [], liveResults: [],
     seedLoading: false, liveLoading: false,
-    hasMatched: false, liveNotice: null, pendingSearch: false,
+    // hasMatched: a search has run at least once. searchedSources: which segments
+    // ('jobs'/'scholarships') have actually been searched — drives per-segment UI
+    // (e.g. the button reads "Search" until that segment has run once).
+    hasMatched: false, searchedSources: [], liveNotice: null, pendingSearch: false,
   });
 
   // True for guest sessions — used to hide auth-only UI (logout button etc.).
@@ -299,7 +302,7 @@ function App() {
       setProfile(merged);
       setProfileId(list.length === 1 ? list[0] : null); // a combined profile has no single id
       if (!opts.silent) {
-        setMatchData({ seedResults: [], liveResults: [], seedLoading: false, liveLoading: false, hasMatched: false, liveNotice: null });
+        setMatchData({ seedResults: [], liveResults: [], seedLoading: false, liveLoading: false, hasMatched: false, searchedSources: [], liveNotice: null });
         showToast(list.length === 1 ? 'Using this résumé' : `Combining ${list.length} résumés`);
       }
     } catch (_) { /* keep the current profile if a fetch fails */ }
@@ -329,7 +332,7 @@ function App() {
     // pendingSearch tells the Matches page to run one search on arrival — the
     // user explicitly asked to find matches. Plain tab navigation never sets it,
     // so entering Matches otherwise does not auto-search.
-    setMatchData({ seedResults: [], liveResults: [], seedLoading: false, liveLoading: false, hasMatched: false, liveNotice: null, pendingSearch: true });
+    setMatchData({ seedResults: [], liveResults: [], seedLoading: false, liveLoading: false, hasMatched: false, searchedSources: [], liveNotice: null, pendingSearch: true });
     go('matches');
   }
 
@@ -350,7 +353,7 @@ function App() {
     setHistory([]);
     setSelectedResumeIds([]);
     localStorage.removeItem('selectedResumeIds');
-    setMatchData({ seedResults: [], liveResults: [], seedLoading: false, liveLoading: false, hasMatched: false, liveNotice: null });
+    setMatchData({ seedResults: [], liveResults: [], seedLoading: false, liveLoading: false, hasMatched: false, searchedSources: [], liveNotice: null });
     go('welcome');
   }
 

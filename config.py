@@ -16,11 +16,22 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
 
 # ---------------------------------------------------------------------------
-# Hack Club AI (LLM inference) — free, OpenAI-compatible chat completions.
-# Get a key at https://ai.hackclub.com/dashboard
+# LLM inference — any OpenAI-compatible chat-completions endpoint.
+# Defaults to Groq (free tier, very fast, reliable JSON). To use another
+# provider, just set LLM_BASE_URL / LLM_MODEL. The older HACKCLUB_AI_* names
+# are still honored as a fallback so existing deployments keep working.
+#   Groq:   https://api.groq.com/openai/v1   (key: https://console.groq.com)
 # ---------------------------------------------------------------------------
-HACKCLUB_AI_API_KEY = os.getenv("HACKCLUB_AI_API_KEY", "")
-HACKCLUB_AI_BASE_URL = os.getenv("HACKCLUB_AI_BASE_URL", "https://ai.hackclub.com/proxy/v1")
+LLM_API_KEY = (
+    os.getenv("LLM_API_KEY")
+    or os.getenv("GROQ_API_KEY")
+    or os.getenv("HACKCLUB_AI_API_KEY", "")
+)
+LLM_BASE_URL = (
+    os.getenv("LLM_BASE_URL")
+    or os.getenv("HACKCLUB_AI_BASE_URL")
+    or "https://api.groq.com/openai/v1"
+)
 
 # Hack Club Search (live web search used to ground job/scholarship results).
 # Get a key at https://search.hackclub.com . Optional: if unset, live web
@@ -43,13 +54,22 @@ TAVILY_SEARCH_URL = os.getenv("TAVILY_SEARCH_URL", "https://api.tavily.com/searc
 ADZUNA_APP_ID = os.getenv("ADZUNA_APP_ID")
 ADZUNA_APP_KEY = os.getenv("ADZUNA_APP_KEY")
 
-# Models served by Hack Club AI. Both default to the documented qwen3-32b model,
-# which is reliably available. You can point these at any model your dashboard
-# lists (e.g. a Gemini / GPT / Kimi id) via env vars without code changes.
+# Which model handles which job. Defaults are Groq models chosen so the app
+# stays fast: a capable 70B for drafting, and a small "instant" model for the
+# per-opportunity scoring that runs many times per search. Override via env
+# without code changes to point at any model your provider lists.
 #   MAIN  -> quality-sensitive work: resume parsing, live search, drafting.
 #   SCORING -> lightweight per-opportunity fit scoring (kept cheap/fast).
-CLAUDE_MODEL = os.getenv("HACKCLUB_MODEL", "qwen/qwen3-32b")
-SCORING_MODEL = os.getenv("HACKCLUB_SCORING_MODEL", "qwen/qwen3-32b")
+LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("HACKCLUB_MODEL") or "llama-3.3-70b-versatile"
+LLM_SCORING_MODEL = (
+    os.getenv("LLM_SCORING_MODEL")
+    or os.getenv("HACKCLUB_SCORING_MODEL")
+    or "llama-3.1-8b-instant"
+)
+
+# Names the rest of the app imports (kept stable across provider swaps).
+CLAUDE_MODEL = LLM_MODEL
+SCORING_MODEL = LLM_SCORING_MODEL
 
 # Folder where uploaded resume PDFs are temporarily saved.
 UPLOAD_FOLDER = "uploads"

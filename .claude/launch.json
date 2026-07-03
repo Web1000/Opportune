@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "flask",
-      "runtimeExecutable": "venv/bin/python",
+      "runtimeExecutable": ".venv/bin/python",
       "runtimeArgs": ["app.py"],
       "port": 5001
     }

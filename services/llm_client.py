@@ -15,8 +15,8 @@ web_search tool).
 import httpx
 
 from config import (
-    HACKCLUB_AI_API_KEY,
-    HACKCLUB_AI_BASE_URL,
+    LLM_API_KEY,
+    LLM_BASE_URL,
     HACKCLUB_SEARCH_API_KEY,
     HACKCLUB_SEARCH_URL,
     TAVILY_API_KEY,
@@ -46,10 +46,10 @@ class _Messages:
     """Implements .create(...) against Hack Club AI's chat-completions API."""
 
     def create(self, model, messages, max_tokens=1024, temperature=None, **_ignored):
-        if not HACKCLUB_AI_API_KEY:
+        if not LLM_API_KEY:
             raise RuntimeError(
-                "HACKCLUB_AI_API_KEY is not set — get a free key at "
-                "https://ai.hackclub.com/dashboard and add it to your .env."
+                "No LLM API key set — add GROQ_API_KEY (free key at "
+                "https://console.groq.com) to your .env."
             )
         # messages already use OpenAI-compatible roles ('user'/'system'/'assistant')
         # with string content, so they pass straight through.
@@ -62,10 +62,10 @@ class _Messages:
             payload["temperature"] = temperature
 
         headers = {
-            "Authorization": f"Bearer {HACKCLUB_AI_API_KEY}",
+            "Authorization": f"Bearer {LLM_API_KEY}",
             "Content-Type": "application/json",
         }
-        url = HACKCLUB_AI_BASE_URL.rstrip("/") + "/chat/completions"
+        url = LLM_BASE_URL.rstrip("/") + "/chat/completions"
         resp = httpx.post(url, json=payload, headers=headers, timeout=_HTTP_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()

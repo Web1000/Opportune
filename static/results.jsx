@@ -13,7 +13,11 @@ function Results({ go, favIds, toggleFav, profile, demo, demoReady, matchData, s
   const [employment, setEmployment] = useState('Any');
   const [err, setErr] = useState('');
 
-  const { seedResults, liveResults, seedLoading, liveLoading, hasMatched, liveNotice, pendingSearch } = matchData;
+  const { seedResults, liveResults, seedLoading, liveLoading, searchedSources, liveNotice, pendingSearch } = matchData;
+  // Has the *currently selected* segment been searched yet? Drives the button
+  // label and empty-state so switching to a not-yet-searched segment reads
+  // "Search", not "Update matches".
+  const searched = (searchedSources || []).includes(source);
 
   // Combine + filter for the source pill the user picked.
   function visible() {
@@ -60,9 +64,15 @@ function Results({ go, favIds, toggleFav, profile, demo, demoReady, matchData, s
       return;
     }
     setErr('');
-    setMatchData(prev => ({ ...prev, hasMatched: true, pendingSearch: false }));
+    setMatchData(prev => ({
+      ...prev, hasMatched: true, pendingSearch: false,
+      searchedSources: [...new Set([...(prev.searchedSources || []), source])],
+    }));
     if (demo && !seedResults.length) runSeed(); // seeded sample list, demo only
-    runLive();
+    // Scope the search to the active segment so we don't spend time fetching the
+    // other source's results (they're hidden by visible() anyway).
+    const sources = source === 'jobs' ? ['indeed'] : ['scholarshipscanada'];
+    runLive({ sources });
   }, [pendingSearch, demoReady, profile]);
 
   // The search button — the only thing that searches on a normal visit.
@@ -70,7 +80,10 @@ function Results({ go, favIds, toggleFav, profile, demo, demoReady, matchData, s
     if (e) e.preventDefault();
     if (!profile) { setErr('No profile loaded — fill in Your info first.'); return; }
     setErr('');
-    setMatchData(prev => ({ ...prev, hasMatched: true, pendingSearch: false }));
+    setMatchData(prev => ({
+      ...prev, hasMatched: true, pendingSearch: false,
+      searchedSources: [...new Set([...(prev.searchedSources || []), source])],
+    }));
     const filters = {};
     if (company.trim()) filters.company = company.trim();
     if (source === 'jobs' && employment !== 'Any') filters.employment_type = employment;
@@ -122,7 +135,7 @@ function Results({ go, favIds, toggleFav, profile, demo, demoReady, matchData, s
 
         <div className="live-actions">
           <button type="submit" className="btn btn-gold live-search-btn" disabled={liveLoading}>
-            {liveLoading ? 'Searching…' : (hasMatched ? 'Update matches' : 'Search')}
+            {liveLoading ? 'Searching…' : (searched ? 'Update matches' : 'Search')}
           </button>
         </div>
       </form>
@@ -146,13 +159,13 @@ function Results({ go, favIds, toggleFav, profile, demo, demoReady, matchData, s
         </div>
       )}
 
-      {!stillLoading && !err && !hasMatched && (
+      {!stillLoading && !err && !searched && (
         <div className="match-empty">
           <p className="body">Set your filters above and press Search to find matches.</p>
         </div>
       )}
 
-      {!stillLoading && !err && hasMatched && (
+      {!stillLoading && !err && searched && (
         <React.Fragment>
           <div className="results-sub">
             <h2 className="serif-h results-h">{results.length} {results.length === 1 ? 'match' : 'matches'}</h2>
