@@ -1,11 +1,11 @@
-"""Opportunity search service: pull *live* opportunities off the web with Claude.
+"""Opportunity search service: pull *live* opportunities off the web with the LLM.
 
-Uses Anthropic's built-in web_search tool to fetch current postings from
-indeed.com (jobs/internships) and scholarshipscanada.com (scholarships),
-then returns them in the same dict shape used everywhere else in the app
-so they can be fed straight into score_opportunity_fit.
+Uses the web_search() helper (Tavily / Hack Club Search) to fetch current
+postings from indeed.com (jobs/internships) and scholarshipscanada.com
+(scholarships), then returns them in the same dict shape used everywhere else in
+the app so they can be fed straight into score_opportunity_fit.
 
-One Claude call per source. Each source is isolated — if Indeed fails,
+One LLM call per source. Each source is isolated — if Indeed fails,
 ScholarshipsCanada still runs, and vice versa.
 """
 import json
@@ -13,7 +13,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlsplit
 import httpx
-from config import CLAUDE_MODEL, MOCK_MODE, ADZUNA_APP_ID, ADZUNA_APP_KEY
+from config import LLM_MODEL, MOCK_MODE, ADZUNA_APP_ID, ADZUNA_APP_KEY
 from services.profile_service import safe_json_parse
 from services.llm_client import client, web_search
 
@@ -487,9 +487,8 @@ def _search_web(profile: dict, source_key: str, filters: dict = None) -> list[di
     query = _build_query(profile, source_key, filters)
     domains = cfg["domains"]
 
-    # Ground results in REAL hits from the free Hack Club Search API (this
-    # replaces Anthropic's built-in web_search tool). The model only selects and
-    # describes among these — it never authors URLs.
+    # Ground results in REAL hits from the live web-search backend. The model
+    # only selects and describes among these — it never authors URLs.
     results_hits = web_search(query, allowed_domains=domains, count=10)
     if not results_hits:
         # No search key configured (or the search failed) — nothing to ground on.
@@ -548,7 +547,7 @@ Rules:
     raw_items = []
     try:
         response = client.messages.create(
-            model=CLAUDE_MODEL,
+            model=LLM_MODEL,
             max_tokens=4000,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -680,7 +679,7 @@ def search_live_opportunities(profile: dict, sources: list, mock=None, filters: 
     # Search every requested source concurrently. Each _search_one_source call is
     # a slow web_search request (up to max_uses searches), so running the sources
     # in parallel instead of one after another roughly halves this step. The
-    # Anthropic SDK releases the GIL while waiting on the network, so threads are
+    # HTTP request releases the GIL while waiting on the network, so threads are
     # enough — no async needed.
     results = []
     with ThreadPoolExecutor(max_workers=max(1, len(requested))) as pool:

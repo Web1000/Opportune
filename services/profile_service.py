@@ -1,19 +1,19 @@
-"""Profile service: turn raw resume text into a structured JSON profile via Claude.
+"""Profile service: turn raw resume text into a structured JSON profile via the LLM.
 
 Also defines safe_json_parse — the shared helper that every service uses to
-robustly parse Claude's JSON output.
+robustly parse the LLM's JSON output.
 """
 import json
 import re
-from config import CLAUDE_MODEL, MOCK_MODE
+from config import LLM_MODEL, MOCK_MODE
 from services.llm_client import client
 
 
 
 def safe_json_parse(text: str) -> dict:
-    """Parse a JSON object out of Claude's reply, tolerating common quirks.
+    """Parse a JSON object out of the LLM's reply, tolerating common quirks.
 
-    Claude sometimes wraps JSON in ```json fences or adds a sentence around it,
+    The LLM sometimes wraps JSON in ```json fences or adds a sentence around it,
     which would break json.loads(). We strip the fences, grab the first {...}
     block, then parse it.
     """
@@ -40,13 +40,13 @@ _MOCK_PROFILE = {
         {"category": "Work", "title": "Software Developer Intern", "organization": "FinTech Startup", "location": "Toronto, ON", "duration": "Summer 2025", "description": "Built internal dashboards with React and Flask; wrote SQL queries and automated reports."},
         {"category": "Leadership", "title": "Teaching Assistant", "organization": "University of Waterloo", "location": "Waterloo, ON", "duration": "2024-2025", "description": "Led weekly tutorials for 40+ first-year students."},
     ],
-    "projects": [{"name": "Resume Matcher", "technologies": ["Python", "Flask", "React"], "description": "A web app that matches resumes to opportunities using the Claude API."}],
+    "projects": [{"name": "Resume Matcher", "technologies": ["Python", "Flask", "React"], "description": "A web app that matches resumes to opportunities using an LLM API."}],
     "awards": ["Dean's Honour List (2024)"],
 }
 
 
 def build_structured_profile(resume_text: str, mock=None) -> dict:
-    """Use Claude to extract the resume text into a fixed-schema JSON profile.
+    """Use the LLM to extract the resume text into a fixed-schema JSON profile.
 
     mock=None  -> follow the global MOCK_MODE setting
     mock=True/False -> override per request (used by the UI's Demo toggle)
@@ -54,7 +54,6 @@ def build_structured_profile(resume_text: str, mock=None) -> dict:
     use_mock = MOCK_MODE if mock is None else bool(mock)
     if use_mock:
         return dict(_MOCK_PROFILE)              # return demo data, skip the API call
-    speed = "fast"
     # The prompt lists every field explicitly and ends with the strict
     # "JSON only" instruction so the output is easy to parse.
     prompt = f"""Extract this resume into structured JSON with these exact fields:
@@ -77,7 +76,7 @@ Return ONLY valid JSON. No markdown fences. No commentary."""
 
     try:
         response = client.messages.create(
-            model=CLAUDE_MODEL,
+            model=LLM_MODEL,
             # A full resume's structured JSON routinely exceeds 2000 tokens; when
             # the response is truncated mid-object the JSON won't parse and we'd
             # silently return an empty profile (so the form fills in nothing).

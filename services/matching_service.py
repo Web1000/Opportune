@@ -1,10 +1,10 @@
-"""Matching service: score how well a profile fits one opportunity, using Claude.
+"""Matching service: score how well a profile fits one opportunity, using the LLM.
 
 The /match-opportunities route calls this once per opportunity, then sorts by
 fit_score. The output highlights gaps ("what's missing") — the product's core
 feature.
 """
-from config import SCORING_MODEL, MOCK_MODE
+from config import LLM_SCORING_MODEL, MOCK_MODE
 from services.profile_service import safe_json_parse   # reuse the shared JSON parser
 from services.llm_client import client
 
@@ -35,7 +35,7 @@ def _mock_score(opportunity: dict) -> dict:
 
 
 def score_opportunity_fit(profile: dict, opportunity: dict, mock=None) -> dict:
-    """Ask Claude to rate the profile against one opportunity.
+    """Ask the LLM to rate the profile against one opportunity.
 
     mock=None -> follow global MOCK_MODE; True/False -> per-request override.
     Returns a dict with: fit_score, why_good_fit, missing_information,
@@ -94,7 +94,7 @@ Return ONLY valid JSON. No markdown fences. No commentary."""
     for _ in range(3):
         try:
             response = client.messages.create(
-                model=SCORING_MODEL,
+                model=LLM_SCORING_MODEL,
                 max_tokens=1000,
                 messages=[{"role": "user", "content": prompt}],
             )

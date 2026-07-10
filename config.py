@@ -3,10 +3,11 @@
 Loads secrets from the .env file and defines the constants used across the app.
 Nothing secret is hardcoded here — keys are read from .env at runtime.
 
-This build runs entirely on Hack Club's FREE APIs so it costs nothing to host:
-  * LLM inference  -> Hack Club AI   (https://ai.hackclub.com, OpenAI-compatible)
-  * Live web search-> Hack Club Search (https://search.hackclub.com)
-Both are free for Hack Clubbers — no Anthropic / OpenAI billing involved.
+This build runs on free API tiers so it costs nothing to host:
+  * LLM inference  -> Groq (https://console.groq.com, OpenAI-compatible); any
+                      OpenAI-compatible endpoint works via LLM_BASE_URL / LLM_MODEL.
+  * Live web search-> Tavily (https://app.tavily.com), with Hack Club Search
+                      (https://search.hackclub.com) as a fallback.
 """
 import os
 from dotenv import load_dotenv
@@ -66,10 +67,6 @@ LLM_SCORING_MODEL = (
     or os.getenv("HACKCLUB_SCORING_MODEL")
     or "llama-3.1-8b-instant"
 )
-
-# Names the rest of the app imports (kept stable across provider swaps).
-CLAUDE_MODEL = LLM_MODEL
-SCORING_MODEL = LLM_SCORING_MODEL
 
 # Folder where uploaded resume PDFs are temporarily saved.
 UPLOAD_FOLDER = "uploads"

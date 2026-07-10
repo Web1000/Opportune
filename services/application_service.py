@@ -1,14 +1,14 @@
 """Application service: generate a tailored resume + cover letter for one
-opportunity, using Claude. Also reports what info was missing from the profile.
+opportunity, using the LLM. Also reports what info was missing from the profile.
 
-Claude returns the resume as STRUCTURED data (`resume_data`) — this is the single
+The LLM returns the resume as STRUCTURED data (`resume_data`) — this is the single
 source of truth. From it we derive:
   - a markdown `tailored_resume` for the editable on-screen preview, and
   - a LaTeX PDF (in latex_service) when the user clicks Download.
 Keeping one structured source means the preview and the PDF can never disagree.
 """
 import re
-from config import CLAUDE_MODEL, MOCK_MODE
+from config import LLM_MODEL, MOCK_MODE
 from services.llm_client import client
 from services.profile_service import safe_json_parse   # reuse the shared JSON parser
 
@@ -19,7 +19,7 @@ def _resume_data_to_markdown(rd: dict) -> str:
 
     Mirrors the section order of the LaTeX layout (Experience, Projects,
     Education, Skills) so the preview matches the downloaded PDF. Inline
-    **bold** and [text](url) authored by Claude are passed through untouched —
+    **bold** and [text](url) authored by the LLM are passed through untouched —
     the frontend's mdToHtml renders them.
     """
     rd = rd or {}
@@ -273,8 +273,7 @@ def _mock_application(opportunity: dict) -> dict:
 
 
 def generate_application(profile: dict, opportunity: dict, mock=None) -> dict:
-    speed = "fast"
-    """Use Claude to write a resume + cover letter tailored to one opportunity.
+    """Use the LLM to write a resume + cover letter tailored to one opportunity.
 
     mock=None -> follow global MOCK_MODE; True/False -> per-request override.
     Returns: resume_data (structured), tailored_resume (markdown derived from it),
@@ -319,7 +318,7 @@ Return ONLY valid JSON. No markdown fences. No commentary."""
 
     try:
         response = client.messages.create(
-            model=CLAUDE_MODEL,
+            model=LLM_MODEL,
             max_tokens=4000,
             messages=[{"role": "user", "content": prompt}],
         )

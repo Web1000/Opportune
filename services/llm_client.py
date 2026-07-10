@@ -1,16 +1,16 @@
-"""Hack Club AI client shim.
+"""LLM client shim.
 
-Provides a tiny `client` object that mimics the slice of the Anthropic SDK the
-rest of the app uses — `client.messages.create(...)` returning an object whose
-`.content[0].text` holds the reply — but talks to Hack Club AI's free,
-OpenAI-compatible chat-completions endpoint instead.
+Provides a tiny `client` object exposing the small interface the rest of the app
+calls — `client.messages.create(...)` returning an object whose `.content[0].text`
+holds the reply — but implemented against any OpenAI-compatible chat-completions
+endpoint (Groq by default, set via LLM_BASE_URL / LLM_MODEL).
 
-This lets the existing services keep their original call sites essentially
-unchanged while costing nothing to run.
+This lets every service share one call site and swap providers without code
+changes.
 
-Also exposes `web_search()` — a thin wrapper over the free Hack Club Search API
-used to ground live opportunity results (replacing Anthropic's built-in
-web_search tool).
+Also exposes `web_search()` — a thin wrapper over a live web-search backend
+(Tavily, falling back to Hack Club Search) used to ground live opportunity
+results.
 """
 import httpx
 
@@ -27,9 +27,9 @@ from config import (
 _HTTP_TIMEOUT = httpx.Timeout(120.0, connect=15.0)
 
 
-# --- Minimal response objects shaped like the Anthropic SDK's --------------
+# --- Minimal response objects the services expect ---------------------------
 class _TextBlock:
-    """Mimics an Anthropic text content block: has .type == 'text' and .text."""
+    """A text content block: has .type == 'text' and .text."""
     type = "text"
 
     def __init__(self, text: str):
@@ -37,13 +37,13 @@ class _TextBlock:
 
 
 class _Response:
-    """Mimics an Anthropic Message: .content is a list of content blocks."""
+    """A message whose .content is a list of content blocks."""
     def __init__(self, text: str):
         self.content = [_TextBlock(text)]
 
 
 class _Messages:
-    """Implements .create(...) against Hack Club AI's chat-completions API."""
+    """Implements .create(...) against an OpenAI-compatible chat-completions API."""
 
     def create(self, model, messages, max_tokens=1024, temperature=None, **_ignored):
         if not LLM_API_KEY:
@@ -78,7 +78,7 @@ class _Client:
         self.messages = _Messages()
 
 
-# Drop-in replacement for `anthropic.Anthropic(...)` used across the services.
+# The shared `client` object imported across the services.
 client = _Client()
 
 

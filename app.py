@@ -160,10 +160,10 @@ def _resolve_profile(data: dict):
 
 
 # How many opportunities to score concurrently. Each score is an independent
-# Claude call, and the SDK releases the GIL while waiting on the network, so a
-# thread pool turns a serial chain of calls into near-parallel ones. Capped so a
-# long opportunity list doesn't fire dozens of calls at once (which would risk
-# rate limits); the SDK still retries any 429s with backoff.
+# LLM call, and the HTTP request releases the GIL while waiting on the network, so
+# a thread pool turns a serial chain of calls into near-parallel ones. Capped so a
+# long opportunity list doesn't fire dozens of calls at once, which would risk
+# rate limits.
 _SCORING_CONCURRENCY = 8
 
 
@@ -172,7 +172,7 @@ def _score_to_result(profile: dict, opp: dict, mock, live: bool = False) -> dict
 
     Isolated per opportunity so (a) one scoring failure can't blank the whole
     list, and (b) callers can score many opportunities concurrently via a thread
-    pool instead of one slow Claude call after another.
+    pool instead of one slow LLM call after another.
     """
     try:
         score = score_opportunity_fit(profile, opp, mock=mock)
@@ -540,7 +540,7 @@ def match_opportunities():
         }
         for opp in opportunities
     ]
-    # Score every opportunity concurrently rather than one Claude call at a time.
+    # Score every opportunity concurrently rather than one LLM call at a time.
     with ThreadPoolExecutor(max_workers=_SCORING_CONCURRENCY) as pool:
         results = list(pool.map(lambda od: _score_to_result(profile, od, mock), opp_dicts))
 
@@ -585,7 +585,7 @@ def search_live_opportunities_endpoint():
         return jsonify({"error": f"Live search is unavailable right now ({errors[0]}). "
                                  "Check your connection, or turn on Demo mode to try sample results."}), 502
 
-    # Score the live opportunities concurrently (one Claude call each) instead of
+    # Score the live opportunities concurrently (one LLM call each) instead of
     # sequentially — this scoring pass is the bulk of the live-search wait.
     with ThreadPoolExecutor(max_workers=_SCORING_CONCURRENCY) as pool:
         results = list(pool.map(lambda o: _score_to_result(profile, o, mock, live=True), live_opps))

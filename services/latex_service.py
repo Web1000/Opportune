@@ -2,7 +2,7 @@
 layout (the Harshibar / jakeryang template) compiled with Tectonic.
 
 The flow is:
-  resume_data (structured JSON from Claude)  ->  build_resume_tex()  ->  .tex
+  resume_data (structured JSON from the LLM)  ->  build_resume_tex()  ->  .tex
   .tex  ->  compile_resume_pdf()  ->  PDF bytes
 
 User-supplied text is escaped for LaTeX, and a tiny inline markdown subset is

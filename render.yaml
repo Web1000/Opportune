@@ -15,7 +15,9 @@ services:
         value: "3.12.4"
       # Secrets — set these in the Render dashboard (sync:false keeps them
       # out of the repo). Values come from your local .env.
-      - key: HACKCLUB_AI_API_KEY
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
         sync: false
       - key: HACKCLUB_SEARCH_API_KEY
         sync: false
