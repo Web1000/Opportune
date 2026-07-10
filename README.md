@@ -30,9 +30,13 @@ returning visitors pick up where they left off.
 
 ## Screenshots
 
-| Matched opportunities, scored by fit | Generated résumé & cover letter |
-|---|---|
-| ![Matched opportunities](docs/screenshot-results.png) | ![Tailored resume and cover letter](docs/screenshot-application.png) |
+Matched opportunities scored by fit (left) and a generated résumé + cover letter (right):
+
+<p align="center">
+  <img src="docs/screenshot-results.png" width="46%" align="top" alt="Matched opportunities scored by fit" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshot-application.png" width="46%" align="top" alt="Generated résumé and cover letter" />
+</p>
 
 ## Tech stack
 
