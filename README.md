@@ -5,10 +5,9 @@ jobs and scholarships with an AI-scored fit rating, then generate a tailored
 resume and cover letter as a polished PDF — all running on free API tiers, with
 no paid LLM key required.
 
-🔗 **Live demo:** https://opportune-o4lb.onrender.com
+Our three-person team started Opportune at JamHacks 10. I parallelized scoring across independent postings with an eight-worker thread pool, cutting measured end-to-end response time from about 60 seconds to under 20 seconds.
 
-> Hosted on Render's free tier, so the first request after it's been idle can
-> take ~30–50s to wake the server — after that it's instant.
+Try the local mock walkthrough below with a fictional profile.
 
 ![Opportune — landing page](docs/screenshot-landing.png)
 
@@ -53,17 +52,18 @@ Matched opportunities scored by fit (left) and a generated résumé + cover lett
 <sub>\*In-browser Babel keeps the project zero-build for a hackathon demo. A
 production build would precompile the JSX with a bundler such as Vite.</sub>
 
-## Quick start
+## Try the local demo
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # then add your GROQ_API_KEY (and optionally search/Adzuna keys)
+cp .env.example .env
+# Set MOCK_MODE=true in .env for the key-free demo.
 python app.py          # tables are created and opportunities are seeded automatically on startup
 ```
 
-Server runs on http://localhost:5000
+Open http://localhost:5000, fill out the form with a fictional profile, find matches, and select a posting to generate application materials. Use synthetic data for demos because the app stores profiles and application history.
 
 Get a free Groq key at https://console.groq.com. The default models are
 `llama-3.3-70b-versatile` (drafting) and `llama-3.1-8b-instant` (scoring);
@@ -75,8 +75,7 @@ service then returns cached demo responses, useful for a stable showcase demo.
 
 ## Deployment
 
-The [live demo](https://opportune-o4lb.onrender.com) runs on Render's free tier,
-deployed automatically from the included `render.yaml` blueprint (free web
+The repository includes a `render.yaml` blueprint (free web
 service, `gunicorn app:app`, and a build step that installs deps plus the
 Tectonic LaTeX engine). API keys are set as environment variables in the Render
 dashboard, never committed. Tables are created and opportunities seeded on
